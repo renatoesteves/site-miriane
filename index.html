@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
     --ink:#241A1F;
@@ -214,6 +215,12 @@
   .map-link svg{width:18px;height:18px;}
   .map-link:hover{color:var(--wine-hover);text-decoration:underline;}
   @media (max-width:640px){.map-embed{aspect-ratio:4/5;}}
+  /* Marcador e popup do mapa (Leaflet + OpenStreetMap) */
+  .clinic-marker span{display:block;width:20px;height:20px;border-radius:50%;background:var(--wine);border:3px solid var(--paper);box-shadow:0 2px 8px rgba(51,20,31,0.45);}
+  .leaflet-popup-content-wrapper{border-radius:10px;box-shadow:var(--shadow);}
+  .leaflet-popup-content{font-family:var(--font-body);color:var(--text);font-size:0.85rem;margin:12px 14px;line-height:1.5;}
+  .leaflet-popup-content strong{display:block;margin-bottom:3px;color:var(--ink);font-family:var(--font-body);font-size:0.92rem;}
+  .leaflet-popup-tip{box-shadow:var(--shadow);}
   @media (max-width:640px){.gallery-grid{grid-template-columns:repeat(2,1fr);}}
 
   /* ---------- Process ---------- */
@@ -642,16 +649,7 @@
           </div>
         </div>
       </div>
-      <!-- Mapa renderizado pela API oficial do Google Maps (ver a função initClinicMap no bloco de script mais abaixo).
-           Alternativa sem chave de API, caso prefira: descomente o iframe e remova a div#gmap.
-      <div class="map-embed reveal">
-        <iframe
-          src="https://www.google.com/maps?q=Av.%20Ang%C3%A9lica%2C%202510%20-%20Edif%C3%ADcio%20Old%20England%2C%20Higien%C3%B3polis%2C%20S%C3%A3o%20Paulo%20-%20SP&output=embed"
-          width="100%" height="100%" style="border:0;" loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-          title="Localização do NuMA no Google Maps — Av. Angélica, 2510, Higienópolis, São Paulo"></iframe>
-      </div>
-      -->
+      <!-- Mapa via Leaflet + OpenStreetMap — gratuito, sem chave de API nem conta (ver initClinicMap no script no fim da página). -->
       <div class="map-embed reveal" id="gmap" aria-label="Mapa com a localização do NuMA"></div>
       <a class="map-link" href="https://www.google.com/maps/search/?api=1&query=Av.%20Ang%C3%A9lica%2C%202510%20-%20Edif%C3%ADcio%20Old%20England%2C%20Higien%C3%B3polis%2C%20S%C3%A3o%20Paulo%20-%20SP" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
@@ -962,62 +960,46 @@
     });
   }
 
-  // ---- Google Maps (API oficial) ----
+  // ---- Mapa (Leaflet + OpenStreetMap) ----
+  // Gratuito e sem necessidade de chave de API ou conta — funciona indefinidamente sem custo.
   // Coordenadas reais do Edifício Old England, Av. Angélica 2510, Higienópolis, SP.
   function initClinicMap() {
-    const clinic = { lat: -23.553629, lng: -46.662458 };
-    const mapStyle = [
-      { elementType: "geometry", stylers: [{ color: "#f6f3ec" }] },
-      { elementType: "labels.text.stroke", stylers: [{ color: "#f8f6f1" }] },
-      { elementType: "labels.text.fill", stylers: [{ color: "#4a3c42" }] },
-      { featureType: "poi", stylers: [{ visibility: "off" }] },
-      { featureType: "road", elementType: "geometry", stylers: [{ color: "#ece7dc" }] },
-      { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#ded7c4" }] },
-      { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#dccbb0" }] },
-      { featureType: "transit", stylers: [{ visibility: "off" }] },
-      { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9d4c5" }] },
-      { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#d9d2c2" }] }
-    ];
-    const map = new google.maps.Map(document.getElementById("gmap"), {
+    var gmapEl = document.getElementById("gmap");
+    if (!gmapEl || typeof L === "undefined") return;
+
+    var clinic = [-23.553629, -46.662458];
+    var map = L.map(gmapEl, {
       center: clinic,
       zoom: 16,
-      styles: mapStyle,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true
+      scrollWheelZoom: false
     });
-    const marker = new google.maps.Marker({
-      position: clinic,
-      map: map,
-      title: "NuMA — Núcleo de Medicina Afetiva",
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: "#6B2A3E",
-        fillOpacity: 1,
-        strokeColor: "#F8F6F1",
-        strokeWeight: 3
-      }
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    }).addTo(map);
+
+    var clinicIcon = L.divIcon({
+      className: "clinic-marker",
+      html: "<span></span>",
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+      popupAnchor: [0, -12]
     });
-    const info = new google.maps.InfoWindow({
-      content: '<div style="font-family:Inter,Arial,sans-serif;padding:2px;max-width:220px;">' +
-               '<strong style="display:block;margin-bottom:4px;color:#241A1F;">NuMA — Núcleo de Medicina Afetiva</strong>' +
-               '<span style="font-size:0.85rem;color:#4A3C42;">Av. Angélica, 2510, Higienópolis, São Paulo - SP</span></div>'
-    });
-    marker.addListener("click", function(){ info.open(map, marker); });
-    info.open(map, marker);
+
+    L.marker(clinic, { icon: clinicIcon, title: "NuMA — Núcleo de Medicina Afetiva" })
+      .addTo(map)
+      .bindPopup(
+        "<strong>NuMA — Núcleo de Medicina Afetiva</strong>" +
+        "<span>Av. Angélica, 2510, Higienópolis, São Paulo - SP</span>"
+      )
+      .openPopup();
   }
   window.initClinicMap = initClinicMap;
 </script>
 
-<!--
-  Mapa via API oficial do Google Maps (Maps JavaScript API).
-  1. Crie um projeto em https://console.cloud.google.com/ e ative a "Maps JavaScript API".
-  2. Gere uma chave em APIs e serviços > Credenciais > Criar credenciais > Chave de API.
-  3. Troque SUA_CHAVE_DE_API_AQUI abaixo pela sua chave.
-  4. Por segurança, restrinja a chave por "referenciadores HTTP (sites)" ao domínio do site.
-  Sem uma chave válida, a área do mapa mostra um aviso de erro do próprio Google no lugar do mapa.
--->
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_DE_API_AQUI&callback=initClinicMap"></script>
+<!-- Leaflet + OpenStreetMap: biblioteca de mapa gratuita, sem chave de API nem conta necessária. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>initClinicMap();</script>
 </body>
 </html>
