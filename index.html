@@ -940,16 +940,29 @@
   }
 
   // ---- Privacy consent pop-up ----
-  // Aparece uma vez a cada carregamento da página.
-  // Para lembrar a escolha do visitante entre visitas (quando o site estiver
-  // hospedado fora do Claude, em um servidor próprio), adicione localStorage, por exemplo:
-  //   if (!localStorage.getItem("privacyAccepted")) { showPrivacyModal(); }
-  //   privacyAcceptBtn.addEventListener("click", () => localStorage.setItem("privacyAccepted","1"));
+  // Aparece uma vez por navegador: a escolha fica salva em localStorage,
+  // então não volta a aparecer em novas visitas no mesmo navegador (volta a
+  // aparecer se o histórico/dados do site forem limpos, ou em outro
+  // navegador/dispositivo, já que localStorage não é compartilhado).
   const privacyModal = document.getElementById("privacyModal");
   if (privacyModal) {
+    const PRIVACY_KEY = "privacyNoticeSeen";
+    let alreadySeen = false;
+    try {
+      alreadySeen = localStorage.getItem(PRIVACY_KEY) === "1";
+    } catch (e) {
+      alreadySeen = false; // localStorage indisponível (ex.: navegação privada) — mostra normalmente
+    }
+
     const showPrivacyModal = function(){ privacyModal.classList.add("visible"); };
-    const hidePrivacyModal = function(){ privacyModal.classList.remove("visible"); };
-    setTimeout(showPrivacyModal, 600);
+    const hidePrivacyModal = function(){
+      privacyModal.classList.remove("visible");
+      try { localStorage.setItem(PRIVACY_KEY, "1"); } catch (e) { /* segue sem salvar se indisponível */ }
+    };
+
+    if (!alreadySeen) {
+      setTimeout(showPrivacyModal, 600);
+    }
     document.getElementById("privacyAccept").addEventListener("click", hidePrivacyModal);
     document.getElementById("privacyClose").addEventListener("click", hidePrivacyModal);
     privacyModal.addEventListener("click", function(e){
